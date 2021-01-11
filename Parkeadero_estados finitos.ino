@@ -5,9 +5,34 @@
 // estado de la LCD
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 // variables de estado
-int stage =0;
+#define S_Home 0
+#define S_Ingreso_S 1
+#define S_Intermedio_S 2
+#define S_Parking_S 3
+#define S_num_muestras_S 4
+
+int stage = S_Home; // estado inicial 
+
+// definicion de los botones
+#define btn_menu  0
+#define btn_salir  1
+#define btn_up  2
+#define btn_down  3
+
+byte boton[] = // DEFINIR LOS PINES
+      {
+        A0,
+        A1,
+        A2,
+        A3 };
+
+byte boton_state[4];
+
 // variables de operacion
-int ingreso, intermedio, parking, num_muestras;
+int ingreso;
+int intermedio;
+int parking ; 
+int num_muestras;
 int aumentos[]= {10,10,10,1};
 int led_verde = 4;
 int led_amarillo = 3;
@@ -15,7 +40,13 @@ int led_rojo = 2;
 int trig = 9;
 int eco = 8;
 int calibrador = 58.2;
-
+byte subida(int btn)
+{
+  uint8_t valor_nuevo = digitalRead(boton[btn]);
+  uint8_t result = boton_state[btn] != valor_nuevo && valor_nuevo == 1;
+  boton_state[btn] = valor_nuevo;
+  return result;
+}
 void initLedS()
 {
   const char *deve = "Sr. Rios ";
@@ -77,10 +108,9 @@ void ledStatus(int state, int idLed)
   if (state == 2)
   {
     digitalWrite(idLed, HIGH);
-    digitalWrite(soundDiv, HIGH);
-    delay(400);
+       delay(400);
     digitalWrite(idLed, LOW);
-    digitalWrite(soundDiv, LOW);
+   
   }
   else if (state == 1)
   {
@@ -93,6 +123,17 @@ void ledStatus(int state, int idLed)
 }
 void setup()
 {
+  // Configurar como PULL-UP para ahorrar resistencias
+  pinMode(boton[btn_menu], INPUT_PULLUP);
+  pinMode(boton[btn_salir], INPUT_PULLUP);
+  pinMode(boton[btn_up], INPUT_PULLUP);
+  pinMode(boton[btn_down], INPUT_PULLUP);
+
+  // Se asume que el estado inicial es HIGH
+  boton_state[0] = HIGH;
+  boton_state[1] = HIGH;
+  boton_state[2] = HIGH;
+  boton_state[3] = HIGH;
   // configuracion inicial para la pantalla con saludo
   initLedS();
   // configuracion del sensor
@@ -102,11 +143,40 @@ void setup()
   pinMode(led_verde, OUTPUT);
   pinMode(led_amarillo, OUTPUT);
   pinMode(led_rojo, OUTPUT);
-  pinMode(soundDiv, OUTPUT);
+ 
   Serial.begin(9600);
 }
 
 void loop()
 {
+  switch (stage)
+  {
+  case S_Home:
+    /* code */
+    break;
   
+
+
+  case S_Ingreso_S:
+    /* code */
+    break;
+
+
+
+  case S_Intermedio_S:
+    /* code */
+    break;
+
+
+  case S_Parking_S:
+    /* code */
+    break;
+
+ 
+  case S_num_muestras_S:
+    /* code */
+    break;
+
+
+  }
 }
