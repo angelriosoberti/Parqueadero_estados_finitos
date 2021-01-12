@@ -1,7 +1,7 @@
 {
     "board": "arduino:avr:nano",
-    "configuration": "cpu=atmega328",
+    "configuration": "cpu=atmega328old",
     "programmer": "AVR ISP",
-    "port": "COM5",
+    "port": "COM4",
     "sketch": "Parkeadero_estados finitos.ino"
 }

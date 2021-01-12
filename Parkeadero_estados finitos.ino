@@ -13,27 +13,24 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 int stage = S_Home; // estado inicial
 
-
-
 // definicion de los botones
-#define btn_menu  0
-#define btn_salir  1
-#define btn_up  2
-#define btn_down  3
+#define btn_menu 0
+#define btn_salir 1
+#define btn_up 2
+#define btn_down 3
 
 byte boton[] = // DEFINIR LOS PINES
-      {
+    {
         A0,
         A1,
         A2,
-        A3
-         };
+        A3};
 
 byte boton_state[4];
 
 // variables de operacion
 
-int aumentos[]= {0,10,10,10,1};
+int aumentos[] = {0, 10, 10, 10, 1};
 int led_verde = 4;
 int led_amarillo = 3;
 int led_rojo = 2;
@@ -47,52 +44,53 @@ int intermedio;
 int parking;
 int num_muestras;
 int dir_ingreso = 0;
-int dir_intermedio= 50;
+int dir_intermedio = 50;
 int dir_parking = 100;
-int dir_num_muestras= 150 ;
+int dir_num_muestras = 150;
 
-void prime_Menu(){
-  lcd.clear();
+void prime_Menu()
+{
+
   lcd.setCursor(0, 0);
-  lcd.print("[MENU medicion]");
+  lcd.println("[MENU medicion]");
 }
 void prime_Ingreso()
 {
-  lcd.clear();
+
   lcd.setCursor(0, 0);
-  lcd.print("[MENU/Ingreso]");
+  lcd.println("[MENU/Ingreso]");
 }
 void prime_Intermedio()
 {
-  lcd.clear();
+
   lcd.setCursor(0, 0);
-  lcd.print("[MENU/Inter]");
+  lcd.println("[MENU/Inter]");
 }
 void prime_Parking()
 {
-  lcd.clear();
+
   lcd.setCursor(0, 0);
-  lcd.print("[MENU/Parking]");
+  lcd.println("[MENU/Parking]");
 }
 void prime_numMuestra()
 {
-  lcd.clear();
+
   lcd.setCursor(0, 0);
-  lcd.print("[MENU/muestras]");
+  lcd.println("[MENU/muestras]");
 }
 void prime_variable(int var)
 {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print(var);
-}
 
+  lcd.setCursor(0, 1);
+  lcd.println(var);
+}
 
 byte subida(int btn)
 {
   uint8_t valor_nuevo = digitalRead(boton[btn]);
   uint8_t result = boton_state[btn] != valor_nuevo && valor_nuevo == 1;
   boton_state[btn] = valor_nuevo;
+
   return result;
 }
 void initLedS()
@@ -156,9 +154,8 @@ void ledStatus(int state, int idLed)
   if (state == 2)
   {
     digitalWrite(idLed, HIGH);
-       delay(400);
+    delay(400);
     digitalWrite(idLed, LOW);
-   
   }
   else if (state == 1)
   {
@@ -191,35 +188,46 @@ void setup()
   pinMode(led_verde, OUTPUT);
   pinMode(led_amarillo, OUTPUT);
   pinMode(led_rojo, OUTPUT);
- 
+
   Serial.begin(9600);
+
+  // EEPROM.put(dir_ingreso,1) ;
+  //  EEPROM.put(dir_intermedio, 1);
+  // EEPROM.put(dir_parking, 1);
+  //  EEPROM.put(dir_num_muestras, 1);
 }
 
 void loop()
 {
-  ingreso = EEPROM.get(dir_ingreso,ingreso) ;
+  ingreso = EEPROM.get(dir_ingreso, ingreso);
   intermedio = EEPROM.get(dir_intermedio, intermedio);
   parking = EEPROM.get(dir_parking, parking);
   num_muestras = EEPROM.get(dir_num_muestras, num_muestras);
+
   switch (stage)
   {
   case S_Home:
     filter = filtradoPromedio(num_muestras, tempoSen);
     int D;
+    prime_Menu();
+    prime_variable(D);
     if (subida(btn_menu))
     { // Transición BTN_MENU
       stage = S_Ingreso_S;
+      lcd.clear();
       prime_Ingreso();
       break;
-    } if (filter >= 150 && filter <= 25000)
+    }
+    if (filter >= 150 && filter <= 25000)
     {
-      
+
       D = medicionDistancia(filter);
       if (D <= parking)
       {
         ledStatus(1, led_rojo);
         ledStatus(2, led_verde);
         ledStatus(2, led_amarillo);
+        lcd.clear();
         prime_Menu();
         prime_variable(D);
       }
@@ -228,6 +236,7 @@ void loop()
         ledStatus(0, led_rojo);
         ledStatus(2, led_verde);
         ledStatus(1, led_amarillo);
+        lcd.clear();
         prime_Menu();
         prime_variable(D);
       }
@@ -236,25 +245,27 @@ void loop()
         ledStatus(0, led_rojo);
         ledStatus(2, led_verde);
         ledStatus(0, led_amarillo);
+        lcd.clear();
         prime_Menu();
         prime_variable(D);
       }
     }
     break;
-  
-
 
   case S_Ingreso_S:
-   
+
     if (subida(btn_menu))
     { // Transición btn_menu
-      stage = S_Ingreso_S;
+      stage = S_Intermedio_S;
+      lcd.clear();
       prime_Intermedio();
+      prime_variable(intermedio);
       break;
     }
     if (subida(btn_salir))
     { // Transición BTN_EXIT
       stage = S_Home;
+      lcd.clear();
       prime_Menu();
       break;
     }
@@ -262,13 +273,14 @@ void loop()
     { // Transición BTN_UP
       if (ingreso < 400)
       {
-        ingreso = ingreso + aumentos[S_Ingreso_S];
+        ingreso = ingreso + 10;
       }
       else
       {
         ingreso = 0;
       }
-     
+      EEPROM.update(dir_ingreso, ingreso);
+      lcd.clear();
       prime_Ingreso();
       prime_variable(ingreso);
       break;
@@ -277,32 +289,34 @@ void loop()
     { // Transición BTN_DWN
       if (ingreso > 0)
       {
-        ingreso = ingreso - aumentos[S_Ingreso_S];
+        ingreso = ingreso - 10;
       }
       else
       {
         ingreso = 400;
       }
+      EEPROM.update(dir_ingreso, ingreso);
+      lcd.clear();
       prime_Ingreso();
       prime_variable(ingreso);
-      EEPROM.update(dir_ingreso,ingreso);
+
       break;
     }
-    break; /*** FIN ESTADO S_SET_R ***/
-    
-
-
+    break; /*** FIN ESTADO Ingreso ***/
 
   case S_Intermedio_S:
     if (subida(btn_menu))
     { // Transición btn_menu
       stage = S_Parking_S;
+      lcd.clear();
       prime_Parking();
+      prime_variable(parking);
       break;
     }
     if (subida(btn_salir))
     { // Transición BTN_EXIT
       stage = S_Home;
+      lcd.clear();
       prime_Menu();
       break;
     }
@@ -310,13 +324,14 @@ void loop()
     { // Transición BTN_UP
       if (intermedio < 400)
       {
-        intermedio = intermedio + aumentos[S_Intermedio_S];
+        intermedio = intermedio + 10;
       }
       else
       {
         intermedio = 0;
       }
-
+      EEPROM.update(dir_intermedio, intermedio);
+      lcd.clear();
       prime_Intermedio();
       prime_variable(intermedio);
       break;
@@ -325,29 +340,35 @@ void loop()
     { // Transición BTN_DWN
       if (intermedio > 0)
       {
-        intermedio = intermedio - aumentos[S_Intermedio_S];
+        intermedio = intermedio - 10;
       }
       else
       {
         intermedio = 400;
       }
-      prime_Ingreso();
-      prime_variable(intermedio);
       EEPROM.update(dir_intermedio, intermedio);
+      lcd.clear();
+      prime_Intermedio();
+      prime_variable(intermedio);
+
       break;
     }
-    break; /*** FIN ESTADO S_SET_R ***/
+    break; /*** FIN ESTADO Intermedio ***/
 
   case S_Parking_S:
     if (subida(btn_menu))
     { // Transición btn_menu
       stage = S_num_muestras_S;
+      lcd.clear();
       prime_numMuestra();
+      prime_variable(num_muestras);
+
       break;
     }
     if (subida(btn_salir))
     { // Transición BTN_EXIT
       stage = S_Home;
+      lcd.clear();
       prime_Menu();
       break;
     }
@@ -355,13 +376,14 @@ void loop()
     { // Transición BTN_UP
       if (parking < 400)
       {
-        parking = parking + aumentos[S_Parking_S];
+        parking = parking + 10;
       }
       else
       {
         parking = 0;
       }
-
+      EEPROM.update(dir_parking, parking);
+      lcd.clear();
       prime_Parking();
       prime_variable(parking);
       break;
@@ -370,24 +392,27 @@ void loop()
     { // Transición BTN_DWN
       if (parking > 0)
       {
-        parking = parking - aumentos[S_Parking_S];
+        parking = parking - 10;
       }
       else
       {
         parking = 400;
       }
-      prime_Ingreso();
-      prime_variable(parking);
       EEPROM.update(dir_parking, parking);
+      lcd.clear();
+      prime_Parking();
+      prime_variable(parking);
+
       break;
     }
-    break; /*** FIN ESTADO S_SET_R ***/
+    break; /*** FIN ESTADO parking ***/
 
   case S_num_muestras_S:
     if (subida(btn_menu))
     { // Transición btn_menu
       stage = S_Ingreso_S;
       prime_Ingreso();
+      prime_variable(ingreso);
       break;
     }
     if (subida(btn_salir))
@@ -400,13 +425,14 @@ void loop()
     { // Transición BTN_UP
       if (num_muestras < 15)
       {
-        num_muestras = num_muestras + aumentos[S_num_muestras_S];
+        num_muestras++;
       }
       else
       {
         num_muestras = 0;
       }
-
+      EEPROM.update(dir_num_muestras, num_muestras);
+      lcd.clear();
       prime_numMuestra();
       prime_variable(num_muestras);
       break;
@@ -415,18 +441,19 @@ void loop()
     { // Transición BTN_DWN
       if (num_muestras > 0)
       {
-        num_muestras = num_muestras - aumentos[S_num_muestras_S];
+        num_muestras--;
       }
       else
       {
         num_muestras = 15;
       }
-      prime_Ingreso();
-      prime_variable(num_muestras);
       EEPROM.update(dir_num_muestras, num_muestras);
+      lcd.clear();
+      prime_numMuestra();
+      prime_variable(num_muestras);
+
       break;
     }
     break; /*** FIN ESTADO S_SET_R ***/
-
   }
 }
