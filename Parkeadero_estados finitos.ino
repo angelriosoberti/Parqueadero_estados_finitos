@@ -31,7 +31,7 @@ byte boton_state[4];
 // variables de operacion
 
 int aumentos[] = {0, 10, 10, 10, 1};
-int led_verde = 4;
+int led_verde = 12;
 int led_amarillo = 3;
 int led_rojo = 2;
 int trig = 9;
@@ -88,7 +88,7 @@ void prime_variable(int var)
 
 byte subida(int btn)
 {
-  uint8_t valor_nuevo = digitalRead(boton[btn]);
+  uint8_t valor_nuevo = digitalget(boton[btn]);
   uint8_t result = boton_state[btn] != valor_nuevo && valor_nuevo == 1;
   boton_state[btn] = valor_nuevo;
 
@@ -134,20 +134,23 @@ void ledStatus(int state, int idLed)
   // estado : apagar(0),prender(1), intermitente(2)
   // identificador de led : cual led de que pin
   //*******************************************************sin testeo aun *************************************
-  if (state == 2)
+  switch (state)
   {
+  case 2:
     digitalWrite(idLed, HIGH);
     delay(400);
     digitalWrite(idLed, LOW);
-  }
-  else if (state == 1)
-  {
+    break;
+  case 1 :
     digitalWrite(idLed, HIGH);
-  }
-  else
-  {
+
+  break;
+  case 0:
     digitalWrite(idLed, LOW);
+
+    break;
   }
+  
 }
 void setup()
 {
@@ -182,7 +185,10 @@ void setup()
 
 void loop()
 {
-
+  EEPROM.get(dir_ingreso, ingreso);
+  EEPROM.get(dir_intermedio, intermedio);
+  EEPROM.get(dir_parking, parking);
+  EEPROM.get(dir_num_muestras, num_muestras);
   switch (stage)
 
   {
@@ -197,10 +203,15 @@ void loop()
     }
     else
     {
-      ingreso = EEPROM.get(dir_ingreso, ingreso);
-      intermedio = EEPROM.get(dir_intermedio, intermedio);
-      parking = EEPROM.get(dir_parking, parking);
-      num_muestras = EEPROM.get(dir_num_muestras, num_muestras);
+
+      Serial.print("igreso " );
+      Serial.print(ingreso);
+      Serial.print("Intermedio ");
+      Serial.print(intermedio);
+      Serial.print("parking ");
+      Serial.print(parking);
+      Serial.print("num_muestras ");
+      Serial.print(num_muestras);
       sum = 0;
 
       for (int i = 0; i < num_muestras; i++)
@@ -275,7 +286,7 @@ void loop()
       {
         ingreso = 0;
       }
-      EEPROM.update(dir_ingreso, ingreso);
+      EEPROM.put(dir_ingreso, ingreso);
       lcd.clear();
       prime_Ingreso();
       prime_variable(ingreso);
@@ -291,7 +302,7 @@ void loop()
       {
         ingreso = 500;
       }
-      EEPROM.update(dir_ingreso, ingreso);
+      EEPROM.put(dir_ingreso, ingreso);
       lcd.clear();
       prime_Ingreso();
       prime_variable(ingreso);
@@ -327,7 +338,7 @@ void loop()
       {
         intermedio = 0;
       }
-      EEPROM.update(dir_intermedio, intermedio);
+      EEPROM.put(dir_intermedio, intermedio);
       lcd.clear();
       prime_Intermedio();
       prime_variable(intermedio);
@@ -343,7 +354,7 @@ void loop()
       {
         intermedio = 400;
       }
-      EEPROM.update(dir_intermedio, intermedio);
+      EEPROM.put(dir_intermedio, intermedio);
       lcd.clear();
       prime_Intermedio();
       prime_variable(intermedio);
@@ -372,15 +383,15 @@ void loop()
     }
     if (subida(btn_up))
     { // Transición BTN_UP
-      if (parking < 400)
+      if (parking <= 20)
       {
-        parking = parking + 10;
+        parking = parking + 1;
       }
       else
       {
         parking = 0;
       }
-      EEPROM.update(dir_parking, parking);
+      EEPROM.put(dir_parking, parking);
       lcd.clear();
       prime_Parking();
       prime_variable(parking);
@@ -390,13 +401,13 @@ void loop()
     { // Transición BTN_DWN
       if (parking > 0)
       {
-        parking = parking - 10;
+        parking = parking - 1;
       }
       else
       {
-        parking = 400;
+        parking = 20;
       }
-      EEPROM.update(dir_parking, parking);
+      EEPROM.put(dir_parking, parking);
       lcd.clear();
       prime_Parking();
       prime_variable(parking);
@@ -422,7 +433,7 @@ void loop()
     }
     if (subida(btn_up))
     { // Transición BTN_UP
-      if (num_muestras < 15)
+      if (num_muestras < 100)
       {
         num_muestras++;
       }
@@ -430,7 +441,7 @@ void loop()
       {
         num_muestras = 0;
       }
-      EEPROM.update(dir_num_muestras, num_muestras);
+      EEPROM.put(dir_num_muestras, num_muestras);
       lcd.clear();
       prime_numMuestra();
       prime_variable(num_muestras);
@@ -444,9 +455,9 @@ void loop()
       }
       else
       {
-        num_muestras = 15;
+        num_muestras = 100;
       }
-      EEPROM.update(dir_num_muestras, num_muestras);
+      EEPROM.put(dir_num_muestras, num_muestras);
       lcd.clear();
       prime_numMuestra();
       prime_variable(num_muestras);
