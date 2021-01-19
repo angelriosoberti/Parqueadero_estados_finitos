@@ -4,20 +4,25 @@
 
 // estado de la LCD
 LiquidCrystal_I2C lcd(0x27, 16, 2);
+// para la pantalla corrediza 
+#define COLS 16       // Columnas del LCD
+#define ROWS 2        // Filas del LCD
+#define VELOCIDAD 300 // Velocidad a la que se mueve el texto
 // variables de estado
 #define S_Home 0
 #define S_Ingreso_S 1
 #define S_Intermedio_S 2
 #define S_Parking_S 3
 #define S_num_muestras_S 4
+#define brillo_pantalla 5
 
 int stage = S_Home; // estado inicial
 
 // definicion de los botones
 #define btn_menu 0
 #define btn_salir 1
-#define btn_up 2
-#define btn_down 3
+#define btn_up 2      // A
+#define btn_down 3    // B
 
 byte boton[] = // DEFINIR LOS PINES
     {
@@ -43,49 +48,75 @@ int ingreso;
 int intermedio;
 int parking;
 int num_muestras;
+int brillo;
 int dir_ingreso = 0;
 int dir_intermedio = 100;
 int dir_parking = 200;
 int dir_num_muestras = 300;
+int dir_brillo = 400; 
 float sum;
 float prom;
 
-void prime_Menu()
-{
+String textoMenu = "Midiendo";
+String textoIngreso="Indicar distancia de ingreso";
+String textoIntermedio = "Indicar distancia intermedia de precaucion";
+String textoParking = "Indicar distancia de parada del Auto (minimo de 2 cm)";
+String textoMuestras ="Indicar el numero de muestras a tomar del sensor";
+String textoBrillo = "Brillo de pantalla";
 
+void prime_Menu(String texto)
+{
+int text_long = texto.length();
+if(text_long > 17){
+  for (int i = 1; i <= text_long; i++)
+  {
+    String impresionenPantalla = texto.substring(i - 1);
+
+    // Limpiamos pantalla
+    lcd.clear();
+
+    //Situamos el cursor
+    lcd.setCursor(0, 1);
+
+    // Escribimos el texto
+    lcd.print(impresionenPantalla);
+
+    // Esperamos
+    delay(VELOCIDAD);
+  }
+}else {
   lcd.setCursor(0, 0);
-  lcd.print("[MENU medicion]");
+  lcd.print(texto);
 }
-void prime_Ingreso()
-{
 
-  lcd.setCursor(0, 0);
-  lcd.print("[MENU/Ingreso]");
-}
-void prime_Intermedio()
-{
-
-  lcd.setCursor(0, 0);
-  lcd.print("[MENU/Inter]");
-}
-void prime_Parking()
-{
-
-  lcd.setCursor(0, 0);
-  lcd.print("[MENU/Parking]");
-}
-void prime_numMuestra()
-{
-
-  lcd.setCursor(0, 0);
-  lcd.print("[MENU/muestras]");
 }
 void prime_variable(int var)
 {
   lcd.setCursor(0, 1);
   lcd.print(var);
 }
+int encoder(int cambio, int incremento)
+{
+  static unsigned long ultimaInterrupcion = 0; // variable static con ultimo valor de
+                                               // tiempo de interrupcion
+  unsigned long tiempoInterrupcion = millis(); // variable almacena valor de func. millis
 
+  if (tiempoInterrupcion - ultimaInterrupcion > 5)
+  {                             // rutina antirebote desestima
+                                // pulsos menores a 5 mseg.
+    if (digitalRead(boton[btn_up]) == HIGH) // si B es HIGH, sentido horario
+    {
+      cambio= cambio + incremento; // incrementa POSICION en 1
+    }
+    else
+    {           // si B es LOW, senti anti horario
+      cambio = cambio - incremento; // decrementa POSICION en 1
+    }
+    //cambio = min(100, max(0, calibrador));   // establece limite inferior de 0 ysuperior de 100 para POSICION
+    ultimaInterrupcion = tiempoInterrupcion; // guarda valor actualizado del tiempo
+    return cambio;
+  } // de la interrupcion en variable static
+}
 byte subida(int btn)
 {
   uint8_t valor_nuevo = digitalget(boton[btn]);
@@ -97,12 +128,12 @@ byte subida(int btn)
 void initLedS()
 {
   const char *deve = "Sr. Rios ";
-  const char *vershon = "parking v0.3";
+  const char *vershon = "parking v1.1";
 
   lcd.init();
   lcd.backlight();
   lcd.setBacklight(HIGH);
-  lcd.begin(16, 2);
+  lcd.begin(COLS, ROWS);
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Bienvenido ");
@@ -128,7 +159,6 @@ float distancia() // obtiene el tiempo entre ecos del sensor.
 
   return large;
 }
-
 void ledStatus(int state, int idLed)
 {
   // estado : apagar(0),prender(1), intermitente(2)
@@ -156,17 +186,19 @@ void setup()
 {
   // Configurar como PULL-UP para ahorrar resistencias
   pinMode(boton[btn_menu], INPUT_PULLUP);
-  pinMode(boton[btn_salir], INPUT_PULLUP);
-  pinMode(boton[btn_up], INPUT_PULLUP);
-  pinMode(boton[btn_down], INPUT_PULLUP);
+ // pinMode(boton[btn_salir], INPUTUP);
+ pinMode(boton[btn_up], INPUT);
+ pinMode(boton[btn_down], INPUT);
 
   // Se asume que el estado inicial es HIGH
   boton_state[0] = HIGH;
-  boton_state[1] = HIGH;
-  boton_state[2] = HIGH;
-  boton_state[3] = HIGH;
+ // boton_state[1] = HIGH;
+ // boton_state[2] = HIGH;
+ // boton_state[3] = HIGH;
   // configuracion inicial para la pantalla con saludo
   initLedS();
+  // Configurar las entradas del encoder
+
   // configuracion del sensor
   pinMode(trig, OUTPUT);
   pinMode(eco, INPUT);
@@ -182,13 +214,14 @@ void setup()
   // EEPROM.put(dir_parking, 1);
   //  EEPROM.put(dir_num_muestras, 1);
 }
-
 void loop()
 {
   EEPROM.get(dir_ingreso, ingreso);
   EEPROM.get(dir_intermedio, intermedio);
   EEPROM.get(dir_parking, parking);
   EEPROM.get(dir_num_muestras, num_muestras);
+  EEPROM.get(dir_brillo,brillo);
+
   switch (stage)
 
   {
@@ -198,38 +231,25 @@ void loop()
     { // Transición BTN_MENU
       stage = S_Ingreso_S;
       lcd.clear();
-      prime_Ingreso();
+      prime_Menu(textoIngreso);
       break;
     }
     else
     {
-
-      Serial.print("igreso " );
-      Serial.print(ingreso);
-      Serial.print("Intermedio ");
-      Serial.print(intermedio);
-      Serial.print("parking ");
-      Serial.print(parking);
-      Serial.print("num_muestras ");
-      Serial.print(num_muestras);
       sum = 0;
-
       for (int i = 0; i < num_muestras; i++)
       {
         sum += distancia();
         delay(50);
       }
       prom = sum / num_muestras;
-
       D = prom;
-      Serial.print("Distancia: ");
-      Serial.println(D);
       lcd.clear();
-      prime_Menu();
+      prime_Menu(textoMenu);
       prime_variable(D);
-      lcd.setCursor(4, 1);
+      lcd.setCursor(5, 1);
       lcd.print("cm");
-      delay(500);
+      delay(400);
       if (D > ingreso)
       {
         ledStatus(0,led_rojo);
@@ -250,66 +270,42 @@ void loop()
       }
       if (D <= parking)
       {
+        unsigned long tiempo_parkeado = millis();
         ledStatus(1, led_rojo);
-        ledStatus(1, led_amarillo);
-        ledStatus(1, led_verde);
+        ledStatus(0, led_amarillo);
+        ledStatus(0, led_verde);
+        if (tiempo_parkeado >= 25000)
+        {
+        ledStatus(0,led_rojo);
+         lcd.setBacklight(LOW);
+        break;
+        }
+        
       }
    
     }
 
     break;
-
+/**** Fin del estado S_HOME***/
   case S_Ingreso_S:
     prime_variable(ingreso);
     if (subida(btn_menu))
     { // Transición btn_menu
       stage = S_Intermedio_S;
       lcd.clear();
-      prime_Intermedio();
+      prime_Menu(textoIntermedio);
       prime_variable(intermedio);
       break;
-    }
-    if (subida(btn_salir))
-    { // Transición BTN_EXIT
-      stage = S_Home;
-      lcd.clear();
-      prime_Menu();
-      break;
-    }
-    if (subida(btn_up))
-    { // Transición BTN_UP
-      if (ingreso < 500)
-      {
-        ingreso = ingreso + 10;
-      }
-      else
-      {
-        ingreso = 0;
-      }
+    }else {
+      encoder(ingreso, 10);
       EEPROM.put(dir_ingreso, ingreso);
       lcd.clear();
-      prime_Ingreso();
+      prime_Menu(textoIngreso);
       prime_variable(ingreso);
-      break;
+      
     }
-    if (subida(btn_down))
-    { // Transición BTN_DWN
-      if (ingreso > 0)
-      {
-        ingreso = ingreso - 10;
-      }
-      else
-      {
-        ingreso = 500;
-      }
-      EEPROM.put(dir_ingreso, ingreso);
-      lcd.clear();
-      prime_Ingreso();
-      prime_variable(ingreso);
-
-      break;
-    }
-    break; /*** FIN ESTADO Ingreso ***/
+  break;
+    /*** FIN ESTADO Ingreso ***/
 
   case S_Intermedio_S:
     prime_variable(intermedio);
@@ -317,51 +313,19 @@ void loop()
     { // Transición btn_menu
       stage = S_Parking_S;
       lcd.clear();
-      prime_Parking();
-      prime_variable(parking);
-      break;
-    }
-    if (subida(btn_salir))
-    { // Transición BTN_EXIT
-      stage = S_Home;
-      lcd.clear();
-      prime_Menu();
-      break;
-    }
-    if (subida(btn_up))
-    { // Transición BTN_UP
-      if (intermedio < 400)
-      {
-        intermedio = intermedio + 10;
-      }
-      else
-      {
-        intermedio = 0;
-      }
+      prime_Menu(textoParking);
+     break;
+    }else{
+      encoder(intermedio, 10);
       EEPROM.put(dir_intermedio, intermedio);
       lcd.clear();
-      prime_Intermedio();
+      prime_Menu(textoIntermedio);
       prime_variable(intermedio);
-      break;
+      
     }
-    if (subida(btn_down))
-    { // Transición BTN_DWN
-      if (intermedio > 0)
-      {
-        intermedio = intermedio - 10;
-      }
-      else
-      {
-        intermedio = 400;
-      }
-      EEPROM.put(dir_intermedio, intermedio);
-      lcd.clear();
-      prime_Intermedio();
-      prime_variable(intermedio);
-
-      break;
-    }
-    break; /*** FIN ESTADO Intermedio ***/
+  break;
+    
+     /*** FIN ESTADO Intermedio ***/
 
   case S_Parking_S:
     prime_variable(parking);
@@ -369,101 +333,60 @@ void loop()
     { // Transición btn_menu
       stage = S_num_muestras_S;
       lcd.clear();
-      prime_numMuestra();
+      prime_Menu(textoMuestras);
       prime_variable(num_muestras);
 
       break;
-    }
-    if (subida(btn_salir))
-    { // Transición BTN_EXIT
-      stage = S_Home;
-      lcd.clear();
-      prime_Menu();
-      break;
-    }
-    if (subida(btn_up))
-    { // Transición BTN_UP
-      if (parking <= 20)
-      {
-        parking = parking + 1;
-      }
-      else
-      {
-        parking = 0;
-      }
+    }else
+    {
+      encoder(parking, 10);
       EEPROM.put(dir_parking, parking);
       lcd.clear();
-      prime_Parking();
+      prime_Menu(textoParking);
       prime_variable(parking);
-      break;
+      
     }
-    if (subida(btn_down))
-    { // Transición BTN_DWN
-      if (parking > 0)
-      {
-        parking = parking - 1;
-      }
-      else
-      {
-        parking = 20;
-      }
-      EEPROM.put(dir_parking, parking);
-      lcd.clear();
-      prime_Parking();
-      prime_variable(parking);
-
-      break;
-    }
-    break; /*** FIN ESTADO parking ***/
+  break;
+    /*** FIN ESTADO parking ***/
 
   case S_num_muestras_S:
     prime_variable(num_muestras);
     if (subida(btn_menu))
     { // Transición btn_menu
-      stage = S_Ingreso_S;
-      prime_Ingreso();
-      prime_variable(ingreso);
+      stage = brillo_pantalla;
+      prime_Menu(textoBrillo);
+      prime_variable(brillo);
       break;
     }
-    if (subida(btn_salir))
-    { // Transición BTN_EXIT
-      stage = S_Home;
-      prime_Menu();
-      break;
-    }
-    if (subida(btn_up))
-    { // Transición BTN_UP
-      if (num_muestras < 100)
-      {
-        num_muestras++;
-      }
-      else
-      {
-        num_muestras = 0;
-      }
+    else
+    {
+      encoder(num_muestras, 1);
       EEPROM.put(dir_num_muestras, num_muestras);
       lcd.clear();
-      prime_numMuestra();
+      prime_Menu(textoMuestras);
       prime_variable(num_muestras);
-      break;
+     
     }
-    if (subida(btn_down))
-    { // Transición BTN_DWN
-      if (num_muestras > 0)
-      {
-        num_muestras--;
-      }
-      else
-      {
-        num_muestras = 100;
-      }
-      EEPROM.put(dir_num_muestras, num_muestras);
-      lcd.clear();
-      prime_numMuestra();
-      prime_variable(num_muestras);
+    break;
 
+    /*** FIN ESTADO S_SET_R ***/
+
+    case brillo_pantalla:
+    prime_variable(brillo);
+    if (subida(btn_menu))
+    {
+      stage = S_Home;
+      lcd.clear();
+      prime_Menu(textoMenu);
       break;
+    }else
+    {
+      encoder(brillo, 1);
+      EEPROM.put(dir_brillo, brillo);
+      lcd.clear();
+      prime_Menu(textoBrillo);
+      prime_variable(brillo);
     }
-    break; /*** FIN ESTADO S_SET_R ***/
+    break;
   }
 }
