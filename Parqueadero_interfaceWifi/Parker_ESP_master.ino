@@ -1,10 +1,93 @@
-int distDeteccion_esp;
-int distAlto_esp;
+
 #include <ESP8266WiFi.h>
+#include <Wire.h>
 WiFiServer server(80);
+IPAddress ip(192, 168, 1, 200);
+IPAddress gateway(192, 168, 1, 1);
+IPAddress subnet(255, 255, 255, 0);
+
 const char *ssid = "ESP_Park";
 const char *password = "test";
-#include <Wire.h>
+
+//Variables para el guardado en EPPROM
+int distDeteccion_esp;
+int distAlto_esp;
+int kyori;
+bool medir = false;
+
+struct dataRecived
+{
+  int txKyori;
+};
+struct dataTransfer
+{
+  
+  int distDeteccion_esp;
+  int distAlto_esp;
+  bool peticion;
+};
+
+dataTransfer envio;
+dataRecived recibe;
+
+bool newTxData = false;
+bool newRxData = false;
+const byte arduiono_nano = 8; // arduiono nano
+const byte ESP8266 = 9;       //ESP8266
+unsigned long prevUpdateTime = 0;
+unsigned long updateInterval = 500;
+
+void madarData()
+{
+
+  if (newTxData == true)
+  {
+    //inicia la transmision a otro dispositivo
+    Wire.beginTransmission(arduiono_nano);
+    Wire.write((byte *)&envio, sizeof(envio));
+    Wire.endTransmission();
+
+    /*
+    Serial.print("Sent ");
+    Serial.print(txData.textA);
+    Serial.print(' ');
+    Serial.print(txData.valA);
+    Serial.print(' ');
+    Serial.println(txData.valB);*/
+
+    newTxData = false;
+  }
+}
+
+void receiveEvent(int numBytesReceived)
+{
+
+  if (newRxData == false)
+  {
+    // copy the data to rxData
+    Wire.readBytes((byte *)&recibe, numBytesReceived);
+    kyori = recibe.txKyori 
+    newRxData = true;
+  }
+}
+
+// en esta funcion asigno los valores a
+void updateDataToSend()
+{
+
+  if (millis() - prevUpdateTime >= updateInterval)
+  {
+    prevUpdateTime = millis();
+    if (newTxData == false)
+    { // ensure previous message has been sent
+     distAlto_esp =  envio.distAlto_esp;
+     distDeteccion_esp = envio.distDeteccion_esp;
+     medir = envio.peticion;
+      medirnewTxData = true;
+    }
+  }
+}
+
 void apCon()
 {
   // esta funcion hace que el esp genere su propia red wifi y no tenga que estar necesitando una aparte.
@@ -27,29 +110,26 @@ void apCon()
 // }
 
 
-IPAddress ip(192, 168, 1, 200);
-IPAddress gateway(192, 168, 1, 1);
-IPAddress subnet(255, 255, 255, 0);
+
 void setup()
 {
-  Wire.begin();       // Conexión al Bus I2C
+  Wire.begin(1);       // Conexión al Bus I2C 
   Serial.begin(9600); // Velocidad de conexión
+  apCon();
+  Wire.onRequest(receiveEvent);
 }
 
 void loop()
 {
-  Wire.requestFrom(2, 10); // Le pide 10 bytes al Esclavo 2
 
-  while (Wire.available()) // slave may send less than requested
-  {
-    char c = Wire.read(); // Recibe byte a byte
-    Serial.print(c);      // Presenta los caracteres en el Serial Monitor
-  }
+if (newRxData == true)
+{
+  newRxData = false;
+}
+updateDataToSend();
+madarData();
   
-  Serial.println(); // Cámbia de línea en el Serial Monitor.
-  delay(500);
-
-  WiFiClient client = server.available();
+   WiFiClient client = server.available();
   if (!client)
   {
     return;

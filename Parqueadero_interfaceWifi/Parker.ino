@@ -13,15 +13,92 @@ int estados[] = {8, 7, 6, 5, 4, 3, 2, 1};
 int eco = 7;
 int trig = 8;
 int intensidad; // La intensidad es de luz de la matriz son  14 niveles
-int distDeteccion_ino = 100;
-int distAlto_ino = 5;
-int memDistDeteccion_ino;
-int memDistAlto_ino;
+
+
+//Variables para el guardado en EPPROM
+int distDeteccion_ino;
+int distAlto_ino;
+int adressDistDeteccion_ino=0;
+int adressDistAlto_ino=100 ;
+
+struct dataTransfer {
+  int txKyori;
+};
+struct dataRecived{
+  int distDeteccion_esp;
+  int distAlto_esp;
+  bool peticion ;
+};
+dataTransfer envio;
+dataRecived recibe;
+
+bool newTxData = false;
+bool newRxData = false;
+const byte arduiono_nano = 8; // arduiono nano
+const byte ESP8266 = 9;     //ESP8266
+unsigned long prevUpdateTime = 0;
+unsigned long updateInterval = 500;
+
+
+
 int kyori;
 int detector = 0;
-int distancia = 5;
+int distancia ;
+bool sync = false ;
 
 LedControl lc = LedControl(DIN, CLK, CS, 1);
+//funciones para la transmision
+void madarData()
+{
+
+  if (newTxData == true)
+  {
+    //inicia la transmision a otro dispositivo
+    Wire.beginTransmission(ESP8266);
+    Wire.write((byte *)&envio, sizeof(envio));
+    Wire.endTransmission(); 
+
+    /*
+    Serial.print("Sent ");
+    Serial.print(txData.textA);
+    Serial.print(' ');
+    Serial.print(txData.valA);
+    Serial.print(' ');
+    Serial.println(txData.valB);*/
+
+    newTxData = false;
+  }
+}
+
+void receiveEvent(int numBytesReceived)
+{
+
+  if (newRxData == false)
+  {
+    // copy the data to rxData
+    Wire.readBytes((byte *)&recibe, numBytesReceived);
+    EEPROM.put(adressDistAlto_ino,recibe.distAlto_esp);
+    EEPROM.put(adressDistDeteccion_ino,recibe.distDeteccion_esp);
+    sync = recibe.peticion;
+    newRxData = true;
+  }
+
+}
+
+// en esta funcion asigno los valores a 
+void updateDataToSend()
+{
+
+  if (millis() - prevUpdateTime >= updateInterval)
+  {
+    prevUpdateTime = millis();
+    if (newTxData == false)
+    { // ensure previous message has been sent
+    envio.txKyori= kyori;
+      newTxData = true;
+    }
+  }
+}
 
 int lumen()
 {
@@ -82,28 +159,10 @@ void lighSignal(int d)
     matrixDraw(estados[indice]);
   }
 }
-//void requestEvent(){
-//}
-void setup()
-{
-  Serial.begin(9600);
-  lc.shutdown(0, false);
-  lc.clearDisplay(0);
-  pinMode(trig, OUTPUT);
-  pinMode(eco, INPUT);
-  // Este Esclavo es el número 2
-  //Wire.begin(2);
-  // Cuando el Maestro le hace una petición,realiza el requestEvent
-  //Wire.onRequest(requestEvent);
-}
-void loop()
-{
-  //variable detector para saber cuando dormir y cuando trabajar
-  Serial.print("detector:");
-  Serial.println(detector);
+void operacion(){
   distancia = distancia_cm();
-  Serial.print("distancia:");
-  Serial.println(distancia);
+  /* Serial.print("distancia:");
+  Serial.println(distancia);*/
   //regula intensidad de luz de la matrix
   intensidad = lumen(); // intensidad tomara un valor del 3 al  14
   lc.setIntensity(0, intensidad);
@@ -118,7 +177,7 @@ void loop()
 
   if (detector == 1)
   {
-    if (kyori <= 2)
+    if (kyori <= distAlto_ino)
     {
 
       Serial.println("PARKING");
@@ -126,13 +185,14 @@ void loop()
       delay(10000);
       lc.clearDisplay(0);
       detector = 0;
+      sync = false;
     }
     else
     {
       Serial.print("MIDIENDO  d=");
       Serial.println(kyori);
       lighSignal(distancia);
-      delay(500);
+      delay(350);
       lc.clearDisplay(0);
     }
   }
@@ -140,4 +200,29 @@ void loop()
   {
     Serial.print("Modo sleep");
   }
+}
+
+void setup()
+{
+  Serial.begin(9600);
+  lc.shutdown(0, false);
+  lc.clearDisplay(0);
+  pinMode(trig, OUTPUT);
+  pinMode(eco, INPUT);
+
+  Wire.begin(arduiono_nano);
+  // Cuando el Maestro le hace una petición,realiza el requestEvent
+  Wire.onRequest(receiveEvent);
+}
+void loop()
+{
+if (newRxData == true)
+{
+  newRxData = false;
+}
+operacion();
+updateDataToSend();
+if(sync = true){
+  madarData();
+}
 }
