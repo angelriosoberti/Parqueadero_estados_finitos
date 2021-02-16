@@ -1,10 +1,12 @@
 
 #include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
 #include <Wire.h>
-WiFiServer server(80);
+ESP8266WebServer server(80);
 IPAddress ip(192, 168, 1, 200);
 IPAddress gateway(192, 168, 1, 1);
 IPAddress subnet(255, 255, 255, 0);
+String header;
 
 const char *ssid = "ESP_Park";
 const char *password = "test";
@@ -66,7 +68,7 @@ void receiveEvent(int numBytesReceived)
   {
     // copy the data to rxData
     Wire.readBytes((byte *)&recibe, numBytesReceived);
-    kyori = recibe.txKyori 
+    kyori = recibe.txKyori;
     newRxData = true;
   }
 }
@@ -97,19 +99,11 @@ void apCon()
   Serial.println(ssid);
   Serial.print("IP address:\t");
   Serial.println(WiFi.softAPIP())
+  server.on("/", handle_OnConnect);
+  server.onNotFound(handle_NotFound);
+  server.begin();
+  Serial.println("HTTP server started");
 }
-// SOLO USADO EN EL CASO DE CONECTARSE A UNA RED WIFI
-// void wifiConection(){
-//   Wifi.begin(ssid, password);
-//   while (Wifi.status() != WL_CONNECTED)
-//   {
-//    delay(500);
-//    Serial.print(".");
-//   }
-
-// }
-
-
 
 void setup()
 {
@@ -128,8 +122,60 @@ if (newRxData == true)
 }
 updateDataToSend();
 madarData();
-  
-   WiFiClient client = server.available();
+server.handleClient();
+}
+void handle_OnConnect()
+{
+  server.send(200, "text/html", SendHTML(kyori,distDeteccion_esp,distAlto_esp));
+}
+void handle_NotFound()
+{
+  server.send(404, "text/plain", "Not found");
+}
+String SendHTML(int medida, int deteccion, int alto )
+{
+  String ptr = "<!DOCTYPE html> <html>\n";
+  ptr += "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
+  ptr += "<title>ESP8266 Weather Report</title>\n";
+  ptr += "<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
+  ptr += "body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;}\n";
+  ptr += "p {font-size:24px;color:#444444;margin-bottom:10px;border-style:ridge;\n";
+  ptr += "border-width:1px;border-color:black;}\n";
+  ptr += "#actual{font-size:40px;color:#070707;   margin-bottom:10px;margin-top:1px;}\n";
+  ptr += "#deteccion{font-size:40px;color:#30ff07;margin-bottom:10px;margin-top:1px;}\n";
+  ptr += "#alto{font-size:40px;color:#fa0303; margin-bottom:10px;margin-top:1px;\n";
+  ptr += "</style>\n";
+  ptr += "</head>\n";
+  ptr += "<body>\n";
+  ptr += "<div id=\"webpage\">\n";
+  ptr += "<h1>ESP8266 NodeMCU Distance Display</h1>\n";
+
+  ptr += "<p>Medida Actual:</p> <p id=\"actual\">";
+  ptr += (int)medida;
+  ptr += "cm</p><br>";
+  ptr += "<p>Distancia de deteccion:</p><p id=\"deteccion\"> ";
+  ptr += (int)deteccion;
+  ptr += "cm</p><br>";
+  ptr += "<p>Distancia de alto:</p> <p id=\"alto\"> ";
+  ptr += (int)alto;
+  ptr += "cm</p><br>";
+
+  ptr += "</div>\n";
+  ptr += "</body>\n";
+  ptr += "</html>\n";
+  return ptr;
+}
+
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*
+void appWeb(){
+
+
   if (!client)
   {
     return;
@@ -207,4 +253,4 @@ madarData();
   delay(10);
   Serial.println("Peticion finalizada");
   Serial.println("");
-}
+}*/
